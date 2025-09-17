@@ -1,0 +1,190 @@
+version: '3.9'
+
+networks:
+  smartbus-network:
+    driver: bridge
+
+services:
+
+  mongo:
+    image: mongo:6
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    networks:
+      - smartbus-network
+    volumes:
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - smartbus-network
+
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0
+    container_name: mqtt-broker
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    networks:
+      - smartbus-network
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "4000:4000"
+    networks:
+      - smartbus-network
+    depends_on:
+      - auth-service
+      - mqtt-handler-service
+      - storage-service
+    environment:
+      - NODE_ENV=production
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    ports:
+      - "5001:5001"
+    networks:
+      - smartbus-network
+    environment:
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://mongo:27017/auth
+      - JWT_SECRET=your_jwt_secret
+
+  mqtt-handler-service:
+    build:
+      context: ./services/mqtt-handler-service
+      dockerfile: Dockerfile
+    container_name: mqtt-handler-service
+    ports:
+      - "5002:5002"
+    networks:
+      - smartbus-network
+    environment:
+      - NODE_ENV=production
+      - MQTT_BROKER=mqtt://mqtt-broker:1883
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+  storage-service:
+    build:
+      context: ./services/storage-service
+      dockerfile: Dockerfile
+    container_name: storage-service
+    ports:
+      - "5003:5003"
+    networks:
+      - smartbus-network
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MONGO_URI=mongodb://mongo:27017/storage
+
+  route-management-service:
+    build:
+      context: ./services/route-management-services
+      dockerfile: Dockerfile
+    container_name: route-management-service
+    ports:
+      - "5004:5004"
+    networks:
+      - smartbus-network
+    depends_on:
+      - storage-service
+    environment:
+      - NODE_ENV=production
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: notification-service
+    ports:
+      - "5005:5005"
+    networks:
+      - smartbus-network
+    depends_on:
+      - storage-service
+    environment:
+      - NODE_ENV=production
+
+  chat-service:
+    build:
+      context: ./services/chat-service
+      dockerfile: Dockerfile
+    container_name: chat-service
+    ports:
+      - "5006:5006"
+    networks:
+      - smartbus-network
+    depends_on:
+      - storage-service
+    environment:
+      - NODE_ENV=production
+
+  analytics-service:
+    build:
+      context: ./services/analytics-service
+      dockerfile: Dockerfile
+    container_name: analytics-service
+    ports:
+      - "5007:5007"
+    networks:
+      - smartbus-network
+    depends_on:
+      - storage-service
+      - route-management-service
+    environment:
+      - NODE_ENV=production
+
+  passenger-service:
+    build:
+      context: ./services/passenger-service
+      dockerfile: Dockerfile
+    container_name: passenger-service
+    ports:
+      - "5008:5008"
+    networks:
+      - smartbus-network
+    environment:
+      - NODE_ENV=production
+
+  driver-service:
+    build:
+      context: ./services/driver-service
+      dockerfile: Dockerfile
+    container_name: driver-service
+    ports:
+      - "5009:5009"
+    networks:
+      - smartbus-network
+    environment:
+      - NODE_ENV=production
+
+  stationMaster-service:
+    build:
+      context: ./services/stationMaster-service
+      dockerfile: Dockerfile
+    container_name: stationMaster-service
+    ports:
+      - "5010:5010"
+    networks:
+      - smartbus-network
+    environment:
+      - NODE_ENV=production
+
+volumes:
+  mongo_data:

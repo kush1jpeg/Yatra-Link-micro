@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+build/
+
+# Logs
+logs/
+*.log
+
+# Env files
+.env
+.env.*
+!.env.local
+
+# Cache
+.cache/
+.tmp/

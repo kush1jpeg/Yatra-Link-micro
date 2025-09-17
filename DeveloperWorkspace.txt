@@ -1,0 +1,136 @@
+## **1. Core Use Case: Bus Location Updates**
+
+**Flow**:
+
+1. **Driver app → MQTT Broker**: Driver publishes location every few seconds.
+
+2. **MQTT Handler Service**:
+
+   * Subscribes to driver topics.
+   * Validates incoming data (lat/lon, speed, timestamp).
+   * Stores raw location in **Redis** for fast geospatial queries.
+   * Sends data to **Route Management Service** for deviation check.
+
+3. **Route Management Service**:
+
+   * Receives current location and planned route.
+   * Calls OSM library to compute new route if deviation detected.
+   * Updates **Redis** with new route data.
+   * Publishes updates to **WebSocket service** (or API Gateway forwarding to frontend).
+
+4. **Frontend**:
+
+   * Subscribes via **WebSocket / SSE** to bus updates.
+   * Updates map in real-time.
+   * Passenger can "ping" driver via HTTP → API Gateway → Passenger Service → MQTT Handler → Driver App.
+
+---
+
+### **Edge Cases for Real-Time Updates**
+
+* **High-frequency updates** → batch updates to Redis or use queues (RabbitMQ/Kafka) to avoid overload.
+* **Duplicate or jitter locations** → add a filter threshold (e.g., only forward if movement >10m or speed >0).
+* **Driver offline** → buffer updates in Redis with TTL; mark driver inactive after timeout.
+* **Frontend reconnect** → fetch latest state from Redis on connection.
+
+---
+
+## **2. Passenger “Ping” / High Concurrency Scenario**
+
+**Flow**:
+
+1. User clicks "Ping Driver".
+2. Request hits **API Gateway → Passenger Service → MQTT Handler → Driver App**.
+
+**Edge Cases / Scalability**:
+
+* **1000+ simultaneous registrations**:
+
+  * **Use async task queues**: passenger service pushes registration tasks to a **queue (RabbitMQ/Kafka)**.
+  * Workers process tasks and update **Auth Service / Storage / Notification Service** asynchronously.
+  * Rate-limit queue consumption to avoid DB overload.
+* **DB bottleneck**:
+
+  * Use **connection pooling**.
+  * Batch writes where possible.
+  * Consider **sharding users** across DB instances for scale.
+* **Auth token collisions**:
+
+  * Ensure JWT tokens are unique per session.
+  * Short-lived tokens, refresh tokens to reduce invalid token accumulation.
+* **Network failures**:
+
+  * Retry mechanisms on failed DB writes or message queue publishes.
+  * Dead-letter queues to handle permanent failures.
+
+---
+
+## **3. Microservice Responsibilities at Scale**
+
+| Service                      | Responsibilities                                                    | Scaling / Edge Case Handling                                                                           |
+| ---------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **MQTT Handler**             | Receives driver updates, validates, pushes to Redis & Route Service | Horizontal scale → partition topics; buffer via Kafka/RabbitMQ; deduplicate messages                   |
+| **Redis**                    | Fast geospatial queries; caching routes & driver locations          | Redis Cluster; TTL for stale locations; use geospatial indexes; separate DB for analytics vs real-time |
+| **Route Management Service** | Compute route deviations, validate paths using OSM                  | Stateless → horizontal scaling; cache previously computed routes; debounce small movements             |
+| **API Gateway**              | HTTP requests, routing, auth checks                                 | Load-balanced, stateless; rate-limit endpoints; WebSocket support                                      |
+| **Auth Service**             | Registration, login, token generation                               | Async registration queue; horizontal scaling; JWT for stateless validation                             |
+| **Passenger Service**        | Ping driver, fetch routes                                           | Horizontal scaling; use queues for high concurrency events                                             |
+| **Driver Service**           | Optional: driver commands                                           | Horizontal scaling; handle ping delivery, offline buffering                                            |
+| **Notification Service**     | Push notifications to passengers/drivers                            | Async queue-based delivery; retries on failures                                                        |
+| **Analytics Service**        | Collect & process data for reporting                                | Batch or stream processing; can scale independently                                                    |
+| **Storage Service**          | Persist routes, logs, files                                         | Scalable storage: S3/MinIO; use async writes                                                           |
+
+---
+
+## **4. Real-Time Frontend Updates**
+
+* **WebSocket / SSE** approach:
+
+  1. Subscribe to bus topic (e.g., `/bus/:id/location`).
+  2. Backend (MQTT Handler → Route Service → WebSocket) publishes updates to relevant clients.
+  3. On reconnect, fetch latest location from Redis.
+* **Avoid overload**: throttle updates (e.g., 1 update/sec per client if too many).
+
+---
+
+## **5. High Concurrency Solutions**
+
+1. **1000+ user registrations simultaneously**:
+
+   * Queue incoming requests.
+   * Async worker processes.
+   * Batch DB writes.
+   * DB sharding for massive scale.
+2. **High-frequency MQTT updates (100 buses, 1 update/sec → 360,000/day)**:
+
+   * Use Redis for fast in-memory storage.
+   * Async processing for OSM computations.
+   * Cluster MQTT broker and handler services.
+3. **Route deviation computation**:
+
+   * Cache previous computations in Redis.
+   * Only recompute if deviation > threshold.
+4. **Frontend subscribers > 10k**:
+
+   * Use **WebSocket cluster** behind load balancer.
+   * Redis Pub/Sub for broadcasting updates to all WS instances.
+
+---
+
+### **6. Summary of Flow with Edge Cases Handled**
+
+```
+Driver App → MQTT Broker → MQTT Handler → Redis & Route Management → WebSocket → Frontend
+                       |                     |
+                       |                     → Analytics Service (batch)
+                       |
+                       → Notification Service (driver alerts)
+
+Passenger Ping → API Gateway → Passenger Service → MQTT Handler → Driver App
+
+High concurrency handling:
+- Async queues (RabbitMQ/Kafka)
+- Redis Cluster
+- Load-balanced microservices
+- Rate-limiting & throttling
+```

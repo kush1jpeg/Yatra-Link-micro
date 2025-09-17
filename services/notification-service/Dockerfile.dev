@@ -1,0 +1,26 @@
+# Dockerfile.dev
+FROM node:18-alpine
+
+# Set working directory to /app
+WORKDIR /app
+
+# Copy package.json and package-lock.json to /app
+COPY package.json package-lock.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the source code into /app
+COPY . .
+
+# Install nodemon globally
+RUN npm install -g nodemon
+
+# Set working directory to /app/src for running the service
+WORKDIR /app/src
+
+# Expose the port for this service
+EXPOSE 5005
+
+# Start the service using nodemon
+CMD ["nodemon", "index.js"]

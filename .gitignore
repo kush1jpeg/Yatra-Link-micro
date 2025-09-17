@@ -1,0 +1,48 @@
+# Node modules everywhere
+**/node_modules/
+
+# Build outputs everywhere
+**/dist/
+**/build/
+
+# Logs
+**/logs/
+**/*.log
+**/*.log.*
+*.pid
+*.seed
+*.pid.lock
+
+# Cache
+**/.cache/
+**/.tmp/
+**/temp/
+**/.nyc_output/
+**/.tsbuildinfo
+
+# Coverage
+**/coverage/
+
+# Env files (allow only .env.local to stay tracked)
+**/.env
+**/.env.*
+!**/.env.local
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+*.iml
+
+# Docker
+**/docker-compose.override.yml
+**/.docker/
+*.tar
+
+# Secrets
+**/secrets/
+**/*.key
+**/*.crt
+**/*.pem
