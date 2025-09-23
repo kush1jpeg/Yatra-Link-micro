@@ -1,7 +1,7 @@
 # YatraLink - Smart Bus Backend System
 
 ## Overview
-Smart Bus Backend is a **microservices-based backend system** for real-time bus tracking, route management, passenger-driver communication, notifications, AI chat support, and analytics.  
+Smart Bus Backend is a **backend system** for real-time bus tracking, route management, passenger-driver communication, notifications, AI chat support, and analytics.  
 Built with **Node.js (ES modules), Redis, MongoDB, and MQTT**, containerized with **Docker**.
 
 ---
@@ -50,54 +50,3 @@ Built with **Node.js (ES modules), Redis, MongoDB, and MQTT**, containerized wit
 
 ---
 
-## Getting Started
-
-### Prerequisites
-- Docker >= 20.x
-- Docker Compose >= 2.x
-- Node.js >= 18.x
-
-### Installation
-```bash
-git clone https://github.com/yourusername/YatraLink.git
-cd YatraLink
-docker-compose up --build
-
-Access services via ports defined in docker-compose.yml:
-
-API Gateway: http://localhost:4000
-
-MQTT Broker: mqtt://localhost:1883
-
-MongoDB: mongodb://localhost:27017
-
-Redis: redis://localhost:6379
-
-
-Project Structure
-
-services/
-├── api-gateway/
-├── auth-service/
-├── mqtt-handler-service/
-├── storage-service/
-├── route-management-service/
-├── notification-service/
-├── chat-service/
-└── analytics-service/
-
-
-Environment Variables
-
-Each service uses a .env file. Example:
-
-AUTH_SERVICE
-PORT=5001
-JWT_SECRET=your_jwt_secret
-MONGO_URI=mongodb://mongo:27017/auth
-
-MQTT_HANDLER_SERVICE
-PORT=5002
-MQTT_BROKER=mqtt://mqtt-broker:1883
-REDIS_HOST=redis
-REDIS_PORT=6379
